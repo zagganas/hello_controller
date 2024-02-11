@@ -1,0 +1,12 @@
+apiVersion: batch.kostis.test.eu/v1
+kind: HelloJob
+metadata:
+  labels:
+    app.kubernetes.io/name: hellojob
+    app.kubernetes.io/instance: hellojob-sample
+    app.kubernetes.io/part-of: hellojobcontroller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: hellojobcontroller
+  name: hellojob-sample
+spec:
+  # TODO(user): Add fields here

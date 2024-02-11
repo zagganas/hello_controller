@@ -1,0 +1,27 @@
+# permissions for end users to view hellojobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: hellojob-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: hellojobcontroller
+    app.kubernetes.io/part-of: hellojobcontroller
+    app.kubernetes.io/managed-by: kustomize
+  name: hellojob-viewer-role
+rules:
+- apiGroups:
+  - batch.kostis.test.eu
+  resources:
+  - hellojobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch.kostis.test.eu
+  resources:
+  - hellojobs/status
+  verbs:
+  - get
