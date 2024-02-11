@@ -17,4 +17,8 @@ resources:
   kind: HelloJob
   path: github.com/zagganas/hello_controller/api/v1
   version: v1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 version: "3"

@@ -65,8 +65,7 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var helloJob batchv1.HelloJob
 	if err := r.Get(ctx, req.NamespacedName, &helloJob); err != nil {
-		log.Error(err, "job was deleted, creating a new one")
-
+		log.Error(err, "hello job was not found")
 	}
 
 	if err := checkEmpty(helloJob.Spec.Message); err != nil {
@@ -76,11 +75,19 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err := checkEmpty(helloJob.Spec.Image); err != nil {
 		log.Error(err, "image cannot be empty")
 	}
+	childJobName := fmt.Sprintf("%s-job", helloJob.Name)
+
+	var childJobs kbatch.JobList
+	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err == nil {
+		// If job already exists, don't do anything else
+		// and end reconciliation here
+		return ctrl.Result{}, nil
+	}
 
 	containerCommand := []string{"echo", helloJob.Spec.Message}
 
 	createHelloJob := func(helloJob *batchv1.HelloJob) (*kbatch.Job, error) {
-		name := fmt.Sprintf("%s-job", helloJob.Name)
+		name := childJobName
 		labels := map[string]string{"k8s-app": name, "job-type": "hello-job"}
 		job := &kbatch.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -113,12 +120,48 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return job, nil
 	}
 
+	job, err := createHelloJob(&helloJob)
+	if err != nil {
+		log.Error(err, "unable to construct job from template")
+		return ctrl.Result{}, nil
+	}
+	if err := r.Create(ctx, job); err != nil {
+		log.Error(err, "unable to create Job for HelloJob", job)
+		return ctrl.Result{}, err
+	}
+
+	log.V(1).Info("created Job for HelloJob", helloJob.Name, "job", job)
+
 	return ctrl.Result{}, nil
 }
 
+var (
+	jobOwnerKey = ".metadata.controller"
+	apiGVStr    = batchv1.GroupVersion.String()
+)
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *HelloJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kbatch.Job{}, jobOwnerKey, func(rawObj client.Object) []string {
+		// grab the job object, extract the owner...
+		job := rawObj.(*kbatch.Job)
+		owner := metav1.GetControllerOf(job)
+		if owner == nil {
+			return nil
+		}
+		// ...make sure it's a CronJob...
+		if owner.APIVersion != apiGVStr || owner.Kind != "HelloJob" {
+			return nil
+		}
+
+		// ...and if so, return it
+		return []string{owner.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchv1.HelloJob{}).
+		Owns(&kbatch.Job{}).
 		Complete(r)
 }
