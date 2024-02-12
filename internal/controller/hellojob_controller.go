@@ -48,7 +48,7 @@ func checkEmpty(s string) error {
 //+kubebuilder:rbac:groups=batch.kostis.test.eu,resources=hellojobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch.kostis.test.eu,resources=hellojobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=batch.kostis.test.eu,resources=hellojobs/finalizers,verbs=update
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get,list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

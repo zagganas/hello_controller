@@ -17,7 +17,12 @@ limitations under the License.
 package v1
 
 import (
+	dockerparser "github.com/novln/docker-parser"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -66,7 +71,7 @@ func (r *HelloJob) ValidateCreate() (admission.Warnings, error) {
 	hellojoblog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil, nil
+	return nil, r.validateHelloJob()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -74,7 +79,7 @@ func (r *HelloJob) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 	hellojoblog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil, nil
+	return nil, r.validateHelloJob()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -83,4 +88,49 @@ func (r *HelloJob) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+func (r *HelloJob) validateHelloJob() error {
+	var allErrs field.ErrorList
+
+	if err := r.validateHelloJobName(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+	if err := r.validateHelloJobSpec(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(schema.GroupKind{Group: "batch.kostis.test.eu", Kind: "HelloJob"}, r.Name, allErrs)
+}
+
+func (r *HelloJob) validateHelloJobSpec() *field.Error {
+	// The field helpers from the kubernetes API machinery help us return nicely
+	// structured validation errors.
+	return validateImageFormat(
+		r.Spec.Image,
+		field.NewPath("spec").Child("image"))
+}
+
+func validateImageFormat(image string, fldPath *field.Path) *field.Error {
+	if _, err := dockerparser.Parse(image); err != nil {
+		return field.Invalid(fldPath, image, err.Error())
+	}
+	return nil
+}
+
+func (r *HelloJob) validateHelloJobName() *field.Error {
+	if len(r.ObjectMeta.Name) > validation.DNS1035LabelMaxLength-11 {
+		// The job name length is 63 character like all Kubernetes objects
+		// (which must fit in a DNS subdomain). The cronjob controller appends
+		// a 11-character suffix to the cronjob (`-$TIMESTAMP`) when creating
+		// a job. The job name length limit is 63 characters. Therefore cronjob
+		// names must have length <= 63-11=52. If we don't validate this here,
+		// then job creation will fail later.
+		return field.Invalid(field.NewPath("metadata").Child("name"), r.Name, "must be no more than 52 characters")
+	}
+	return nil
 }
