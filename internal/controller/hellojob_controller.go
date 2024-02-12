@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	kbatch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -93,7 +94,7 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			{
 				Name:    "delay-container",
 				Image:   "alpine:latest",
-				Command: []string{"sleep", string(*helloJob.Spec.DelaySeconds)},
+				Command: []string{"sleep", strconv.Itoa(*helloJob.Spec.DelaySeconds)},
 			},
 		}
 	}

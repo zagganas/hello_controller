@@ -50,7 +50,7 @@ func (r *HelloJob) Default() {
 	hellojoblog.Info("default", "name", r.Name)
 
 	if r.Spec.DelaySeconds == nil {
-		r.Spec.DelaySeconds = new(int64)
+		r.Spec.DelaySeconds = new(int)
 		*r.Spec.DelaySeconds = 0
 	}
 

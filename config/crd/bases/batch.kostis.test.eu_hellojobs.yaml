@@ -40,7 +40,6 @@ spec:
             description: HelloJobSpec defines the desired state of HelloJob
             properties:
               delayseconds:
-                format: int64
                 type: integer
               image:
                 description: Foo is an example field of HelloJob. Edit hellojob_types.go
