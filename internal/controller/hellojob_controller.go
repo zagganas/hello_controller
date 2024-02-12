@@ -86,6 +86,26 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	containerCommand := []string{"echo", helloJob.Spec.Message}
 
+	containerSpec := corev1.PodSpec{}
+
+	if *helloJob.Spec.DelaySeconds != 0 {
+		containerSpec.InitContainers = []corev1.Container{
+			{
+				Name:    "delay-container",
+				Image:   "alpine:latest",
+				Command: []string{"sleep", string(*helloJob.Spec.DelaySeconds)},
+			},
+		}
+	}
+
+	containerSpec.Containers = []corev1.Container{
+		{
+			Name:    "echo-message",
+			Image:   helloJob.Spec.Image,
+			Command: containerCommand,
+		},
+	}
+
 	createHelloJob := func(helloJob *batchv1.HelloJob) (*kbatch.Job, error) {
 		name := childJobName
 		labels := map[string]string{"k8s-app": name, "job-type": "hello-job"}
@@ -104,19 +124,10 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "hello-job-" + name + "-",
 					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:    "echo-message",
-								Image:   helloJob.Spec.Image,
-								Command: containerCommand,
-							},
-						},
-					},
+					Spec: containerSpec,
 				},
 			},
 		}
-
 		return job, nil
 	}
 

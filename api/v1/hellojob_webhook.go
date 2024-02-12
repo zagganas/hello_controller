@@ -44,6 +44,15 @@ var _ webhook.Defaulter = &HelloJob{}
 func (r *HelloJob) Default() {
 	hellojoblog.Info("default", "name", r.Name)
 
+	if r.Spec.DelaySeconds == nil {
+		r.Spec.DelaySeconds = new(int64)
+		*r.Spec.DelaySeconds = 0
+	}
+
+	if r.Spec.Image == "" {
+		r.Spec.Image = "alpine:latest"
+	}
+
 	// TODO(user): fill in your defaulting logic.
 }
 

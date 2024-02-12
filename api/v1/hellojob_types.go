@@ -29,8 +29,9 @@ type HelloJobSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of HelloJob. Edit hellojob_types.go to remove/update
-	Image   string `json:"image"`
-	Message string `json:"message"`
+	Image        string `json:"image"`
+	Message      string `json:"message,omitempty"`
+	DelaySeconds *int64 `json:"delayseconds,omitempty"`
 }
 
 // HelloJobStatus defines the observed state of HelloJob
