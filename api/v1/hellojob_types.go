@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,6 +25,8 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // HelloJobSpec defines the desired state of HelloJob
+// +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 type HelloJobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -38,6 +41,10 @@ type HelloJobSpec struct {
 type HelloJobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// A list of pointers to currently running jobs.
+	// +optional
+	Active []corev1.ObjectReference `json:"active,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -53,6 +60,7 @@ type HelloJob struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
 
 // HelloJobList contains a list of HelloJob
 type HelloJobList struct {

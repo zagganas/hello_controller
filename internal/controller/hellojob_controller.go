@@ -65,30 +65,38 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := log.FromContext(ctx)
 
 	var helloJob batchv1.HelloJob
-	if err := r.Get(ctx, req.NamespacedName, &helloJob); err != nil {
-		log.Error(err, "hello job was not found")
+	err := r.Get(ctx, req.NamespacedName, &helloJob)
+	if err != nil {
+		log.Error(err, "HelloJob was not found")
+		return ctrl.Result{}, err
 	}
 
 	if err := checkEmpty(helloJob.Spec.Message); err != nil {
 		log.Error(err, "message cannot be empty")
+		return ctrl.Result{}, err
 	}
 
 	if err := checkEmpty(helloJob.Spec.Image); err != nil {
 		log.Error(err, "image cannot be empty")
+		return ctrl.Result{}, err
 	}
 	childJobName := fmt.Sprintf("%s-job", helloJob.Name)
 
 	var childJobs kbatch.JobList
-	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err == nil {
+	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err == nil && len(childJobs.Items) > 0 {
 		// If job already exists, don't do anything else
 		// and end reconciliation here
+		log.Info("Job already exists")
 		return ctrl.Result{}, nil
 	}
 
 	containerCommand := []string{"echo", helloJob.Spec.Message}
 
 	containerSpec := corev1.PodSpec{}
-
+	if helloJob.Spec.DelaySeconds == nil {
+		helloJob.Spec.DelaySeconds = new(int)
+		*helloJob.Spec.DelaySeconds = 0
+	}
 	if *helloJob.Spec.DelaySeconds != 0 {
 		containerSpec.InitContainers = []corev1.Container{
 			{
@@ -138,10 +146,10 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 	if err := r.Create(ctx, job); err != nil {
-		log.Error(err, "unable to create Job for HelloJob", job)
+		log.Error(err, "unable to create Job for HelloJob", "job", job)
 		return ctrl.Result{}, err
 	}
-
+	fmt.Println("\n\nOKP")
 	log.V(1).Info("created Job for HelloJob", helloJob.Name, "job", job)
 
 	return ctrl.Result{}, nil

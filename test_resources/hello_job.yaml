@@ -1,0 +1,9 @@
+apiVersion: batch.kostis.test.eu/v1
+kind: HelloJob
+metadata:
+  name: kostis-test-job
+  labels: 
+    label1: test-label
+spec:
+  message: "Hello world"
+  image: "alpine:latest"
