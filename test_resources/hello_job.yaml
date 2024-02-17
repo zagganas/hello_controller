@@ -5,5 +5,5 @@ metadata:
   labels: 
     label1: test-label
 spec:
-  message: "Hello world"
+  message: "Hello world!"
   image: "alpine:latest"

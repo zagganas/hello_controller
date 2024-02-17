@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	batchv1 "github.com/zagganas/hello_controller/api/v1"
@@ -65,10 +66,12 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := log.FromContext(ctx)
 
 	var helloJob batchv1.HelloJob
-	err := r.Get(ctx, req.NamespacedName, &helloJob)
-	if err != nil {
-		log.Error(err, "HelloJob was not found")
-		return ctrl.Result{}, err
+	childJobName := fmt.Sprintf("%s-job", req.Name)
+	var childJobs kbatch.JobList
+
+	if err := r.Get(ctx, req.NamespacedName, &helloJob); err != nil {
+		// log.Error(err, "Unable to fetch HelloJob")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	if err := checkEmpty(helloJob.Spec.Message); err != nil {
@@ -80,19 +83,20 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		log.Error(err, "image cannot be empty")
 		return ctrl.Result{}, err
 	}
-	childJobName := fmt.Sprintf("%s-job", helloJob.Name)
 
-	var childJobs kbatch.JobList
 	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err == nil && len(childJobs.Items) > 0 {
 		// If job already exists, don't do anything else
 		// and end reconciliation here
-		log.Info("Job already exists")
+		log.V(1).Info("Job " + childJobName + " already exists in namespace " + req.Namespace)
 		return ctrl.Result{}, nil
 	}
 
+	childJobName = fmt.Sprintf("%s-job", helloJob.Name)
 	containerCommand := []string{"echo", helloJob.Spec.Message}
 
-	containerSpec := corev1.PodSpec{}
+	containerSpec := corev1.PodSpec{
+		RestartPolicy: "OnFailure",
+	}
 	if helloJob.Spec.DelaySeconds == nil {
 		helloJob.Spec.DelaySeconds = new(int)
 		*helloJob.Spec.DelaySeconds = 0
@@ -115,7 +119,7 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		},
 	}
 
-	createHelloJob := func(helloJob *batchv1.HelloJob) (*kbatch.Job, error) {
+	createHelloJobSpec := func(helloJob *batchv1.HelloJob) (*kbatch.Job, error) {
 		name := childJobName
 		labels := map[string]string{"k8s-app": name, "job-type": "hello-job"}
 		job := &kbatch.Job{
@@ -126,9 +130,6 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				Namespace:   helloJob.Namespace,
 			},
 			Spec: kbatch.JobSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: labels,
-				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "hello-job-" + name + "-",
@@ -140,17 +141,21 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return job, nil
 	}
 
-	job, err := createHelloJob(&helloJob)
+	job, err := createHelloJobSpec(&helloJob)
 	if err != nil {
 		log.Error(err, "unable to construct job from template")
 		return ctrl.Result{}, nil
 	}
-	if err := r.Create(ctx, job); err != nil {
-		log.Error(err, "unable to create Job for HelloJob", "job", job)
+	log.Info("Making my resource a parent of the deployment")
+	if err := controllerutil.SetControllerReference(&helloJob, job, r.Scheme); err != nil {
+		log.Error(err, "Failed to set deployment controller reference")
 		return ctrl.Result{}, err
 	}
-	fmt.Println("\n\nOKP")
-	log.V(1).Info("created Job for HelloJob", helloJob.Name, "job", job)
+	if err := r.Create(ctx, job); err != nil {
+		log.Error(err, "unable to create Job for HelloJob")
+		return ctrl.Result{}, err
+	}
+	log.V(1).Info("created Job for HelloJob " + helloJob.Name)
 
 	return ctrl.Result{}, nil
 }

@@ -60,7 +60,6 @@ type HelloJob struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
 
 // HelloJobList contains a list of HelloJob
 type HelloJobList struct {
