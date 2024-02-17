@@ -89,7 +89,7 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		// and end reconciliation here
 
 		// Note that this block will be entered every time the job status changes
-		// as the reconciler will run again!
+		// as the reconciler will run again! So be silent here.
 
 		// log.V(1).Info("Job " + childJobName + " already exists in namespace " + req.Namespace)
 		return ctrl.Result{}, nil
