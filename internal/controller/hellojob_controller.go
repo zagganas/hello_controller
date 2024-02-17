@@ -87,7 +87,11 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err == nil && len(childJobs.Items) > 0 {
 		// If job already exists, don't do anything else
 		// and end reconciliation here
-		log.V(1).Info("Job " + childJobName + " already exists in namespace " + req.Namespace)
+
+		// Note that this block will be entered every time the job status changes
+		// as the reconciler will run again!
+
+		// log.V(1).Info("Job " + childJobName + " already exists in namespace " + req.Namespace)
 		return ctrl.Result{}, nil
 	}
 
@@ -146,7 +150,9 @@ func (r *HelloJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		log.Error(err, "unable to construct job from template")
 		return ctrl.Result{}, nil
 	}
-	log.Info("Making my resource a parent of the deployment")
+
+	// It is important to associate the new job with the HelloJob object,
+	// otherwise it will not be deleted when the HelloJob is deleted.
 	if err := controllerutil.SetControllerReference(&helloJob, job, r.Scheme); err != nil {
 		log.Error(err, "Failed to set deployment controller reference")
 		return ctrl.Result{}, err
